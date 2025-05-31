@@ -1,0 +1,15 @@
+
+all:
+  children:
+{% for ht, exps in host_types.items() %}
+    {{ ht }}:
+      hosts:
+{% for i in range(exps | length )  %}
+        {{ ht }}_{{ i }}:
+          ansible_host: login.euler.ethz.ch
+          ansible_user: {{ euler_user }}
+          job_scheduler: slurm
+          remote_dir: /cluster/home/{{ euler_user }}/doe-suite/{{ prj_id }}/{{ suite }}
+          remote_results_dir: /cluster/home/{{ euler_user }}/doe-suite-results
+{% endfor %}
+{% endfor %}

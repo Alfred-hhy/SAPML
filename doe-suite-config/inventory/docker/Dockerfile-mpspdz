@@ -1,0 +1,9 @@
+# syntax=docker/dockerfile:experimental
+
+FROM mpspdz:latest
+
+# 确保 SSH 服务端配置正确
+RUN sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    mkdir -p /var/run/sshd
+
+CMD ["/usr/sbin/sshd", "-D"]

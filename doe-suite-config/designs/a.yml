@@ -1,0 +1,21 @@
+---
+
+minimal:
+  n_repetitions: 1
+  host_types:
+    consistency:
+      n: 1
+      init_roles:
+        - setup-consistency
+      $CMD$: "echo \"[% my_run.arg1 %] [% my_run.arg2 %][% my_run.arg3 %] \""
+  base_experiment:
+    arg1: hello
+    arg2:
+      $FACTOR$: [world, universe]
+    arg3:
+      $FACTOR$: [".", "!"]
+
+$ETL$:
+  check_error:
+    experiments: "*"
+    extractors: {ErrorExtractor: {}, IgnoreExtractor: {} }

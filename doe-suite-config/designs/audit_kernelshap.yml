@@ -1,0 +1,170 @@
+$SUITE_VARS$:
+  sleep_time: 2.0
+
+  _python_pre: "export PYTHONPATH={{ exp_code_dir }}/utils && . {{ exp_code_dir }}/.venv/bin/activate"
+  _python_path: "[% my_run._python_pre %] && {{ exp_code_dir }}/.venv/bin/python"
+  cmd_mpspdz: "[% my_run._python_path %] -m  python_utils.scripts.experiment_runner --player-number <PLAYER-ID> --sleep-time [% my_run.sleep_time %]"
+
+two:
+  n_repetitions: 1
+  host_types:
+    consistency:
+      n: 2
+      check_status: True
+      init_roles:
+        - setup-base
+        - setup-consistency
+        - download-dataset
+      $CMD$:
+      - main: "[% my_run.cmd_mpspdz | replace('<PLAYER-ID>', 0) %]"
+      - main: "[% my_run.cmd_mpspdz | replace('<PLAYER-ID>', 1) %]"
+
+  base_experiment:
+
+    consistency_args:
+      abs_path_to_code_dir: "{{ exp_consistency_dir }}"
+      hosts_file: "{{ exp_consistency_hosts_file }}"
+      pc: kzg
+      pp_args: 1796300
+
+    mpc:
+      player_0_hostname: "[% exp_host_lst | json_query('[?host_type==`consistency`].private_dns_name') | default(['<UNDEFINED-DNS>'], true) | first %]"
+      abs_path_to_code_dir: "{{ exp_code_dir }}"
+      player_count: 2
+      protocol_setup: "lowgear-party"
+
+      compiler_args: $FACTOR$
+      domain: $FACTOR$
+      custom_prime: $FACTOR$
+      custom_prime_length: $FACTOR$
+
+      script_name: "audit_prediction_shap"
+
+      script_args:
+
+        n_input_parties: 2
+
+        debug: True
+        emulate: False
+        dataset: $FACTOR$
+
+        batch_size: 1024
+        n_threads: 32
+        audit_trigger_idx: 0
+
+
+      stage:
+        $FACTOR$: [ compile, run ]
+  factor_levels:
+    - mpc:
+        domain: custom_256
+        custom_prime: '8444461749428370424248824938781546531375899335154063827935233455917409239041'
+        custom_prime_length: null
+        compiler_args: [ '-F 251', '-C', '--budget', '10000', '-Y']
+        script_args:
+          dataset: "adult"
+    - mpc:
+        domain: prime_128
+        compiler_args: [ '-C', '--budget', '10000', '-Y' ]
+        custom_prime: null
+        custom_prime_length: null
+        script_args:
+          dataset: "adult"
+    - mpc:
+        domain: prime_256
+        compiler_args: [ '-F', "256", '-C', '--budget', '10000', '-Y' ]
+        custom_prime: null
+        custom_prime_length: '256'
+        script_args:
+          dataset: "adult"
+
+three:
+  n_repetitions: 1
+  host_types:
+    consistency:
+      n: 3
+      check_status: True
+      init_roles:
+        - setup-base
+        - setup-consistency
+      $CMD$:
+        - main: "[% my_run.cmd_mpspdz | replace('<PLAYER-ID>', 0) %]"
+        - main: "[% my_run.cmd_mpspdz | replace('<PLAYER-ID>', 1) %]"
+        - main: "[% my_run.cmd_mpspdz | replace('<PLAYER-ID>', 2) %]"
+
+  base_experiment:
+
+    consistency_args:
+      abs_path_to_code_dir: "{{ exp_consistency_dir }}"
+      hosts_file: "{{ exp_consistency_hosts_file }}"
+      pc: kzg
+      pp_args: 1796300
+
+    mpc:
+      player_0_hostname: "[% exp_host_lst | json_query('[?host_type==`consistency`].private_dns_name') | default(['<UNDEFINED-DNS>'], true) | first %]"
+      abs_path_to_code_dir: "{{ exp_code_dir }}"
+      player_count: 3
+      protocol_setup: "shamir_malicious_n"
+
+      compiler_args: $FACTOR$
+      domain: $FACTOR$
+      custom_prime: $FACTOR$
+      custom_prime_length: $FACTOR$
+
+      script_name: "audit_prediction_shap"
+
+      script_args:
+        n_input_parties: 3
+
+        debug: True
+        emulate: False
+        dataset: $FACTOR$
+
+        batch_size: 1024
+        n_threads: 32
+        audit_trigger_idx: 0
+
+
+      stage:
+        $FACTOR$: [ compile, run ]
+  factor_levels:
+    - mpc:
+        domain: prime_128
+        compiler_args: [ '-C', '--budget', '10000', '-Y' ]
+        custom_prime: null
+        custom_prime_length: null
+        script_args:
+          dataset: "adult"
+    - mpc:
+        domain: prime_256
+        compiler_args: [ '-F', "256", '-C', '--budget', '10000', '-Y' ]
+        custom_prime: null
+        custom_prime_length: '256'
+        script_args:
+          dataset: "adult"
+    - mpc:
+        domain: custom_256
+        custom_prime: '8444461749428370424248824938781546531375899335154063827935233455917409239041'
+        custom_prime_length: null
+        compiler_args: [ '-F 251', '-C', '--budget', '10000', '-Y']
+        script_args:
+          dataset: "adult"
+
+$ETL$:
+  extract_mpspdz:
+    experiments: "*"
+    extractors:
+      MpSpdzStderrExtractor: {}
+      MpSpdzResultExtractor: {}
+      IgnoreExtractor: { file_regex: ["^consistency.*\\.log$", "^stdout\\.log$"] }
+    transformers: []
+    loaders:
+      CsvSummaryLoader: {}
+  extract_consistency:
+    experiments: "*"
+    extractors:
+      ConsistencyExtractor: { }
+      IgnoreExtractor: { file_regex: ["^stdout\\.log$", "^stderr\\.log$", "^result-.*\\.txt$"] }
+    transformers: [ ]
+    loaders:
+      CsvSummaryLoader: {}

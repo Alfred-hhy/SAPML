@@ -1,0 +1,50 @@
+from Compiler.script_utils import output_utils
+
+from Compiler.script_utils.data import data
+from Compiler.script_utils.data import AbstractInputLoader
+
+
+from Compiler import ml
+from Compiler import library
+
+from Compiler.script_utils.audit import shap
+
+from Compiler.script_utils import config, timers
+
+
+
+
+class InferenceConfig(config.BaseAuditModel):
+    rs_b: int = 1024
+
+program.options_from_args()
+cfg = config.from_program_args(program.args, InferenceConfig)
+
+if not cfg.emulate:
+    pass
+ml.set_n_threads(cfg.n_threads)
+
+library.start_timer(timer_id=timers.TIMER_LOAD_DATA)
+input_loader: AbstractInputLoader = data.get_inference_input_loader(dataset=cfg.dataset, audit_trigger_idx=cfg.audit_trigger_idx,
+                                                                    batch_size=cfg.batch_size, debug=cfg.debug, emulate=cfg.emulate, consistency_check=cfg.consistency_check, sha3_approx_factor=cfg.sha3_approx_factor, n_target_test_samples=1)
+library.stop_timer(timer_id=timers.TIMER_LOAD_DATA)
+
+
+library.start_timer(timer_id=timers.TIMER_AUDIT_RS)
+
+inf_samples, inf_labels = input_loader.test_dataset() # train dataset in case we dont have test dataset
+
+inf_sample_shape = inf_samples.shape
+inf_sample_shape[0] = cfg.rs_b
+
+rs_samples = MultiArray(inf_sample_shape, sfix)
+if len(inf_labels.shape) == 1:
+    rs_labels = sint.Tensor([cfg.rs_b])
+else:
+    rs_labels = MultiArray([cfg.rs_b, inf_labels.shape[1]], sint)
+
+print("Evaluating input shape:", rs_samples.shape)
+
+model = input_loader.model()
+model.summary()
+prediction_results = model.eval(rs_samples, batch_size=min(cfg.batch_size, cfg.rs_b))

@@ -1,0 +1,26 @@
+
+
+- name: Install package containing traffic control (tc)
+  become: True
+  ansible.builtin.apt:
+    pkg:
+      - iproute2
+      - iperf
+    state: present
+    update_cache: yes
+
+- name: Delete all rules
+  become: True
+  ignore_errors: True
+  ansible.builtin.shell: tc qdisc del dev {{ ansible_default_ipv4.interface }} root
+
+- name: Simulating Network
+  debug:
+    msg: "Simulating Network with  (i) Latency: delay={{ netem_delay }}"
+
+  tags: [print_action]
+
+
+- name: Add constant network delay to an interface
+  become: True
+  ansible.builtin.shell: tc qdisc add dev {{ ansible_default_ipv4.interface }} root netem delay {{ netem_delay }} rate {{ netem_rate }}

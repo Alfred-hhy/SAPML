@@ -1,0 +1,84 @@
+$SUITE_VARS$:
+
+  _python_pre: "export PYTHONPATH={{ exp_code_dir }}/utils && . {{ exp_code_dir }}/.venv/bin/activate"
+  _python_path: "[% my_run._python_pre %] && {{ exp_code_dir }}/.venv/bin/python"
+  cmd_mpspdz: "[% my_run._python_path %] -m  python_utils.scripts.experiment_runner --player-number <PLAYER-ID>"
+
+  $INCLUDE_VARS$: dataset.yml
+
+  commit_output: True
+  convert_ring_bits: 31
+  convert_n_threads: 20
+  convert_debug: False
+  convert_chunk_size: 200000
+
+  consistency_args:
+    abs_path_to_code_dir: "{{ exp_consistency_dir }}"
+    hosts_file: "{{ exp_consistency_hosts_file }}"
+    pc: kzg
+    pp_args: "[% my_run.dataset_info[my_run.mpc.script_args.dataset].max_input_size %]"
+    gen_pp: True
+    type:
+      $FACTOR$: [ sha3s, cerebro, pc ]
+    use_split: True
+
+  mpc:
+    player_0_hostname: "[% exp_host_lst | json_query('[?host_type==`consistency`].private_dns_name') | default(['<UNDEFINED-DNS>'], true) | first %]"
+    abs_path_to_code_dir: "{{ exp_code_dir }}"
+    player_count: 3
+    protocol_setup: $FACTOR$
+
+    compiler_args: $FACTOR$
+    domain: $FACTOR$
+    custom_prime: $FACTOR$
+
+    script_name: "training"
+
+    script_args:
+      n_input_parties: 3
+      sha3_approx_factor: "[% my_run.dataset_info[my_run.mpc.script_args.dataset].sha3_approx_factor_full | default(1) %]"
+
+
+
+      debug: False
+      emulate: False
+      dataset:
+        $FACTOR$: [ adult_3p, mnist_full_3party, cifar_alexnet_3party ]
+      batch_size: 128
+      n_threads: 16
+
+      audit_trigger_idx: 0
+      consistency_check: "[% my_run.consistency_args.type %]"
+
+
+    stage:
+      $FACTOR$: [ compile, run ]
+
+sh:
+  n_repetitions: 1
+  host_types:
+    consistency:
+      n: 3
+      check_status: True
+      init_roles:
+        - setup-base
+        - download-dataset
+        - setup-consistency
+      $CMD$:
+        - main: "[% my_run.cmd_mpspdz | replace('<PLAYER-ID>', 0) %]"
+        - main: "[% my_run.cmd_mpspdz | replace('<PLAYER-ID>', 1) %]"
+        - main: "[% my_run.cmd_mpspdz | replace('<PLAYER-ID>', 2) %]"
+
+  base_experiment:
+    network_type: lan
+    mpc_type: sh
+
+  factor_levels:
+
+    - mpc:
+        protocol_setup: "semi_honest_3"
+        domain: ring
+        compiler_args: [ '-R', '64', '-C', '--budget', "[% my_run._runtime_info.budget %]", '-D', '-Z', '3', ]
+        custom_prime: null
+
+$ETL$: {}
